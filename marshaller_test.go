@@ -16,7 +16,7 @@ func TestMarshallerConstants(t *testing.T) {
 
 func TestAuditMarshaller_Consume(t *testing.T) {
 	w := &bytes.Buffer{}
-	m := NewAuditMarshaller(NewAuditWriter(w, 1), uint16(1100), uint16(1399), false, false, 0, []AuditFilter{}, nil)
+	m := NewAuditMarshaller(NewAuditWriter(w, 1), uint16(1100), uint16(1399), false, false, 0)
 
 	// Flush group on 1320
 	m.Consume(&syscall.NetlinkMessage{
@@ -45,7 +45,7 @@ func TestAuditMarshaller_Consume(t *testing.T) {
 
 	assert.Equal(
 		t,
-		"{\"sequence\":1,\"timestamp\":\"10000001\",\"messages\":[{\"type\":1300,\"data\":\"hi there\"},{\"type\":1301,\"data\":\"hi there\"}],\"uid_map\":{}}\n",
+		"{\"sequence\":1,\"timestamp\":\"10000001\",\"messages\":[{\"type\":1300,\"data\":\"hi there\"},{\"type\":1301,\"data\":\"hi there\"}]}\n",
 		w.String(),
 	)
 	assert.Equal(t, 0, len(m.msgs))
@@ -113,7 +113,7 @@ func TestAuditMarshaller_Consume(t *testing.T) {
 		m.Consume(new1320("0"))
 	}
 
-	assert.Equal(t, "{\"sequence\":4,\"timestamp\":\"10000001\",\"messages\":[{\"type\":1300,\"data\":\"hi there\"}],\"uid_map\":{}}\n", w.String())
+	assert.Equal(t, "{\"sequence\":4,\"timestamp\":\"10000001\",\"messages\":[{\"type\":1300,\"data\":\"hi there\"}]}\n", w.String())
 	expected := start.Add(time.Second * 2)
 	assert.True(t, expected.Equal(time.Now()) || expected.Before(time.Now()), "Should have taken at least 2 seconds to flush")
 	assert.Equal(t, 0, len(m.msgs))

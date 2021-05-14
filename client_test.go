@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"syscall"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNetlinkClient_KeepConnection(t *testing.T) {
@@ -28,13 +28,8 @@ func TestNetlinkClient_KeepConnection(t *testing.T) {
 	assert.Equal(t, uint32(56), msg.Header.Len, "Packet size is wrong - this test is brittle though")
 	assert.EqualValues(t, msg.Data[:40], expectedData, "data was wrong")
 
-	// Make sure we get errors printed
-	lb, elb := hookLogger()
-	defer resetLogger()
 	syscall.Close(n.fd)
 	n.KeepConnection()
-	assert.Equal(t, "", lb.String(), "Got some log lines we did not expect")
-	assert.Equal(t, "Error occurred while trying to keep the connection: bad file descriptor\n", elb.String(), "Figured we would have an error")
 }
 
 func TestNetlinkClient_SendReceive(t *testing.T) {
@@ -88,9 +83,6 @@ func TestNetlinkClient_SendReceive(t *testing.T) {
 }
 
 func TestNewNetlinkClient(t *testing.T) {
-	lb, elb := hookLogger()
-	defer resetLogger()
-
 	n, err := NewNetlinkClient(1024)
 
 	assert.Nil(t, err)
@@ -102,8 +94,9 @@ func TestNewNetlinkClient(t *testing.T) {
 		assert.Equal(t, uint32(0), n.seq, "Seq should start at 0")
 		assert.True(t, MAX_AUDIT_MESSAGE_LENGTH >= len(n.buf), "Client buffer is too small")
 
-		assert.Equal(t, "Socket receive buffer size: ", lb.String()[:28], "Expected some nice log lines")
-		assert.Equal(t, "", elb.String(), "Did not expect any error messages")
+		// TODO(prateeknischal): add these lines back when there is a writer
+		//assert.Equal(t, "Socket receive buffer size: ", lb.String()[:28], "Expected some nice log lines")
+		//assert.Equal(t, "", elb.String(), "Did not expect any error messages")
 	}
 }
 
@@ -142,20 +135,4 @@ func sendReceive(t *testing.T, n *NetlinkClient, packet *NetlinkPacket, payload 
 	}
 
 	return msg
-}
-
-// Resets global loggers
-func resetLogger() {
-	l.SetOutput(os.Stdout)
-	el.SetOutput(os.Stderr)
-}
-
-// Hooks the global loggers writers so you can assert their contents
-func hookLogger() (lb *bytes.Buffer, elb *bytes.Buffer) {
-	lb = &bytes.Buffer{}
-	l.SetOutput(lb)
-
-	elb = &bytes.Buffer{}
-	el.SetOutput(elb)
-	return
 }

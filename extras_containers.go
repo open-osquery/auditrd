@@ -10,6 +10,7 @@ import (
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockerclient "github.com/docker/docker/client"
+	"github.com/golang/glog"
 	"github.com/golang/groupcache/lru"
 	"github.com/spf13/viper"
 )
@@ -19,7 +20,7 @@ func init() {
 		if config.GetBool("extras.containers.enabled") {
 			cp, err := NewContainerParser(config.Sub("extras.containers"))
 			if err == nil {
-				l.Printf("ContainerParser enabled (docker=%v pid_cache=%d docker_cache=%d)\n",
+				glog.Infof("ContainerParser enabled (docker=%v pid_cache=%d docker_cache=%d)",
 					cp.docker != nil,
 					cacheSize(cp.pidCache),
 					cacheSize(cp.dockerCache),
@@ -130,7 +131,7 @@ func getPid(data string) (pid, ppid int) {
 			pid, err = strconv.Atoi(id)
 		}
 		if err != nil {
-			el.Printf("Failed to parse pid: %s: %v\n", id, err)
+			glog.Errorf("Failed to parse pid: %s: %v", id, err)
 		}
 		if pid != 0 && ppid != 0 {
 			return
@@ -158,7 +159,7 @@ func (c ContainerParser) getContainersForPid(pid, ppid int) map[string]string {
 		container, err := c.getDockerContainer(cid)
 
 		if err != nil {
-			el.Printf("failed to query docker for container id: %s: %v\n", cid, err)
+			glog.Errorf("failed to query docker for container id: %s: %v", cid, err)
 		} else {
 			return map[string]string{
 				"id":            cid,

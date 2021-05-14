@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"os/user"
 	"strconv"
 	"strings"
 	"syscall"
@@ -30,12 +29,11 @@ type AuditMessage struct {
 }
 
 type AuditMessageGroup struct {
-	Seq           int               `json:"sequence"`
-	AuditTime     string            `json:"timestamp"`
-	CompleteAfter time.Time         `json:"-"`
-	Msgs          []*AuditMessage   `json:"messages"`
-	UidMap        map[string]string `json:"uid_map"`
-	Syscall       string            `json:"-"`
+	Seq           int             `json:"sequence"`
+	AuditTime     string          `json:"timestamp"`
+	CompleteAfter time.Time       `json:"-"`
+	Msgs          []*AuditMessage `json:"messages"`
+	Syscall       string          `json:"-"`
 }
 
 // Creates a new message group from the details parsed from the message
@@ -45,7 +43,6 @@ func NewAuditMessageGroup(am *AuditMessage) *AuditMessageGroup {
 		Seq:           am.Seq,
 		AuditTime:     am.AuditTime,
 		CompleteAfter: time.Now().Add(COMPLETE_AFTER),
-		UidMap:        make(map[string]string, 2), // Usually only 2 individual uids per execve
 		Msgs:          make([]*AuditMessage, 0, 6),
 	}
 
@@ -95,51 +92,7 @@ func (amg *AuditMessageGroup) AddMessage(am *AuditMessage) {
 		// Don't map uids here
 	case 1300:
 		amg.findSyscall(am)
-		amg.mapUids(am)
-	default:
-		amg.mapUids(am)
 	}
-}
-
-// Find all `uid=` occurrences in a message and adds the username to the UidMap object
-func (amg *AuditMessageGroup) mapUids(am *AuditMessage) {
-	data := am.Data
-	start := 0
-	end := 0
-
-	for {
-		if start = strings.Index(data, "uid="); start < 0 {
-			break
-		}
-
-		// Progress the start point beyon the = sign
-		start += 4
-		if end = strings.IndexByte(data[start:], spaceChar); end < 0 {
-			// There was no ending space, maybe the uid is at the end of the line
-			end = len(data) - start
-
-			// If the end of the line is greater than 5 characters away (overflows a 16 bit uint) then it can't be a uid
-			if end > 5 {
-				break
-			}
-		}
-
-		uid := data[start : start+end]
-
-		// Don't bother re-adding if the existing group already has the mapping
-		if _, ok := amg.UidMap[uid]; !ok {
-			amg.UidMap[uid] = getUsername(data[start : start+end])
-		}
-
-		// Find the next uid= if we have space for one
-		next := start + end + 1
-		if next >= len(data) {
-			break
-		}
-
-		data = data[next:]
-	}
-
 }
 
 func (amg *AuditMessageGroup) findSyscall(am *AuditMessage) {
@@ -164,23 +117,4 @@ func (amg *AuditMessageGroup) findSyscall(am *AuditMessage) {
 	}
 
 	amg.Syscall = data[start : start+end]
-}
-
-// Gets a username for a user id
-func getUsername(uid string) string {
-	uname := "UNKNOWN_USER"
-
-	// Make sure we have a uid element to work with.
-	// Give a default value in case we don't find something.
-	if lUser, ok := uidMap[uid]; ok {
-		uname = lUser
-	} else {
-		lUser, err := user.LookupId(uid)
-		if err == nil {
-			uname = lUser.Username
-		}
-		uidMap[uid] = uname
-	}
-
-	return uname
 }

@@ -2,9 +2,10 @@ package main
 
 import (
 	"os"
-	"regexp"
 	"syscall"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 const (
@@ -12,55 +13,34 @@ const (
 )
 
 type AuditMarshaller struct {
-	msgs          map[int]*AuditMessageGroup
-	writer        *AuditWriter
-	lastSeq       int
-	missed        map[int]bool
-	worstLag      int
-	eventMin      uint16
-	eventMax      uint16
-	trackMessages bool
-	logOutOfOrder bool
-	maxOutOfOrder int
-	attempts      int
-	filters       map[string]map[uint16][]*regexp.Regexp // { syscall: { mtype: [regexp, ...] } }
-	extraParsers  ExtraParsers
-}
-
-type AuditFilter struct {
-	messageType uint16
-	regex       *regexp.Regexp
-	syscall     string
+	msgs              map[int]*AuditMessageGroup
+	writer            *AuditWriter
+	lastSeq           int
+	missed            map[int]bool
+	worstLag          int
+	minAuditEventType uint16
+	maxAuditEventType uint16
+	trackMessages     bool
+	logOutOfOrder     bool
+	maxOutOfOrder     int
+	attempts          int
 }
 
 // Create a new marshaller
-func NewAuditMarshaller(w *AuditWriter, eventMin uint16, eventMax uint16, trackMessages, logOOO bool, maxOOO int, filters []AuditFilter, extraParsers ExtraParsers) *AuditMarshaller {
-	am := AuditMarshaller{
-		writer:        w,
-		msgs:          make(map[int]*AuditMessageGroup, 5), // It is not typical to have more than 2 message groups at any given time
-		missed:        make(map[int]bool, 10),
-		eventMin:      eventMin,
-		eventMax:      eventMax,
-		trackMessages: trackMessages,
-		logOutOfOrder: logOOO,
-		maxOutOfOrder: maxOOO,
-		filters:       make(map[string]map[uint16][]*regexp.Regexp),
-		extraParsers:  extraParsers,
+func NewAuditMarshaller(
+	w *AuditWriter, minAuditEventType uint16, maxAuditEventType uint16,
+	trackMessages, logOOO bool, maxOOO int,
+) *AuditMarshaller {
+	return &AuditMarshaller{
+		writer:            w,
+		msgs:              make(map[int]*AuditMessageGroup, 5), // It is not typical to have more than 2 message groups at any given time
+		missed:            make(map[int]bool, 10),
+		minAuditEventType: minAuditEventType,
+		maxAuditEventType: maxAuditEventType,
+		trackMessages:     trackMessages,
+		logOutOfOrder:     logOOO,
+		maxOutOfOrder:     maxOOO,
 	}
-
-	for _, filter := range filters {
-		if _, ok := am.filters[filter.syscall]; !ok {
-			am.filters[filter.syscall] = make(map[uint16][]*regexp.Regexp)
-		}
-
-		if _, ok := am.filters[filter.syscall][filter.messageType]; !ok {
-			am.filters[filter.syscall][filter.messageType] = []*regexp.Regexp{}
-		}
-
-		am.filters[filter.syscall][filter.messageType] = append(am.filters[filter.syscall][filter.messageType], filter.regex)
-	}
-
-	return &am
 }
 
 // Ingests a netlink message and likely prepares it to be logged
@@ -77,7 +57,7 @@ func (a *AuditMarshaller) Consume(nlMsg *syscall.NetlinkMessage) {
 		a.detectMissing(aMsg.Seq)
 	}
 
-	if nlMsg.Header.Type < a.eventMin || nlMsg.Header.Type > a.eventMax {
+	if nlMsg.Header.Type < a.minAuditEventType || nlMsg.Header.Type > a.maxAuditEventType {
 		// Drop all audit messages that aren't things we care about or end a multi packet event
 		a.flushOld()
 		return
@@ -94,7 +74,6 @@ func (a *AuditMarshaller) Consume(nlMsg *syscall.NetlinkMessage) {
 		// Create a new AuditMessageGroup
 		a.msgs[aMsg.Seq] = NewAuditMessageGroup(aMsg)
 	}
-	a.extraParsers.Parse(aMsg)
 
 	a.flushOld()
 }
@@ -120,36 +99,12 @@ func (a *AuditMarshaller) completeMessage(seq int) {
 		return
 	}
 
-	if a.dropMessage(msg) {
-		delete(a.msgs, seq)
-		return
-	}
-
 	if err := a.writer.Write(msg); err != nil {
-		el.Println("Failed to write message. Error:", err)
+		glog.Error("Failed to write message. Error:", err)
 		os.Exit(1)
 	}
 
 	delete(a.msgs, seq)
-}
-
-func (a *AuditMarshaller) dropMessage(msg *AuditMessageGroup) bool {
-	filters, ok := a.filters[msg.Syscall]
-	if !ok {
-		return false
-	}
-
-	for _, msg := range msg.Msgs {
-		if fg, ok := filters[msg.Type]; ok {
-			for _, filter := range fg {
-				if filter.MatchString(msg.Data) {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
 }
 
 // Track sequence numbers and log if we suspect we missed a message
@@ -169,11 +124,11 @@ func (a *AuditMarshaller) detectMissing(seq int) {
 			}
 
 			if a.logOutOfOrder {
-				el.Println("Got sequence", missedSeq, "after", lag, "messages. Worst lag so far", a.worstLag, "messages")
+				glog.V(2).Infoln("Got sequence", missedSeq, "after", lag, "messages. Worst lag so far", a.worstLag, "messages")
 			}
 			delete(a.missed, missedSeq)
 		} else if seq-missedSeq > a.maxOutOfOrder {
-			el.Printf("Likely missed sequence %d, current %d, worst message delay %d\n", missedSeq, seq, a.worstLag)
+			glog.V(2).Infof("Likely missed sequence %d, current %d, worst message delay %d", missedSeq, seq, a.worstLag)
 			delete(a.missed, missedSeq)
 		}
 	}

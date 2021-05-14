@@ -11,6 +11,7 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/fsnotify/fsnotify v0.0.0-20160816051541-f12c6236fe7b // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/hashicorp/hcl v0.0.0-20160902165219-99df0eb941dd // indirect

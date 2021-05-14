@@ -1,6 +1,9 @@
 package main
 
-import "github.com/spf13/viper"
+import (
+	"github.com/golang/glog"
+	"github.com/spf13/viper"
+)
 
 var extraParserConstructors = []func(config *viper.Viper) (ExtraParser, error){}
 
@@ -19,7 +22,7 @@ func createExtraParsers(config *viper.Viper) ExtraParsers {
 	for _, constructor := range extraParserConstructors {
 		cp, err := constructor(config)
 		if err != nil {
-			el.Fatalf("Failed to create ExtraParser: %v", err)
+			glog.Fatalf("Failed to create ExtraParser: %v", err)
 		}
 		if cp != nil {
 			extraParsers = append(extraParsers, cp)
