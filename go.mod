@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
+	github.com/betacraft/easytags v1.0.2 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.4.2-0.20190522125255-080524218ed4
 	github.com/docker/go-connections v0.4.0 // indirect

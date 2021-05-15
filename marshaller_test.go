@@ -1,4 +1,4 @@
-package marshaller
+package auditrd
 
 import (
 	"bytes"

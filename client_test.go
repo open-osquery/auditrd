@@ -1,4 +1,4 @@
-package client
+package auditrd
 
 import (
 	"encoding/binary"
