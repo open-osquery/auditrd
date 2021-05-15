@@ -1,11 +1,13 @@
-package main
+package marshaller
 
 import (
-	"os"
+	"encoding/json"
 	"syscall"
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/open-osquery/auditrd/internal/parser"
+	"github.com/open-osquery/auditrd/pkg/message"
 )
 
 const (
@@ -13,8 +15,7 @@ const (
 )
 
 type AuditMarshaller struct {
-	msgs              map[int]*AuditMessageGroup
-	writer            *AuditWriter
+	msgs              map[int]*parser.AuditMessageGroup
 	lastSeq           int
 	missed            map[int]bool
 	worstLag          int
@@ -28,12 +29,11 @@ type AuditMarshaller struct {
 
 // Create a new marshaller
 func NewAuditMarshaller(
-	w *AuditWriter, minAuditEventType uint16, maxAuditEventType uint16,
+	minAuditEventType uint16, maxAuditEventType uint16,
 	trackMessages, logOOO bool, maxOOO int,
 ) *AuditMarshaller {
 	return &AuditMarshaller{
-		writer:            w,
-		msgs:              make(map[int]*AuditMessageGroup, 5), // It is not typical to have more than 2 message groups at any given time
+		msgs:              make(map[int]*parser.AuditMessageGroup, 5), // It is not typical to have more than 2 message groups at any given time
 		missed:            make(map[int]bool, 10),
 		minAuditEventType: minAuditEventType,
 		maxAuditEventType: maxAuditEventType,
@@ -44,27 +44,33 @@ func NewAuditMarshaller(
 }
 
 // Ingests a netlink message and likely prepares it to be logged
-func (a *AuditMarshaller) Consume(nlMsg *syscall.NetlinkMessage) {
-	aMsg := NewAuditMessage(nlMsg)
+func (a *AuditMarshaller) Process(nlMsg *syscall.NetlinkMessage) *message.AuditMessage {
+	var msg *message.AuditMessage
+	aMsg := parser.NewAuditMessage(nlMsg)
 
 	if aMsg.Seq == 0 {
 		// We got an invalid audit message, return the current message and reset
 		a.flushOld()
-		return
+		return msg
 	}
 
 	if a.trackMessages {
 		a.detectMissing(aMsg.Seq)
 	}
 
-	if nlMsg.Header.Type < a.minAuditEventType || nlMsg.Header.Type > a.maxAuditEventType {
-		// Drop all audit messages that aren't things we care about or end a multi packet event
+	if nlMsg.Header.Type < a.minAuditEventType ||
+		nlMsg.Header.Type > a.maxAuditEventType {
+		// Drop all audit messages that aren't things we care about or end a
+		// multi packet event
 		a.flushOld()
-		return
+		return msg
 	} else if nlMsg.Header.Type == EVENT_EOE {
-		// This is end of event msg, flush the msg with that sequence and discard this one
-		a.completeMessage(aMsg.Seq)
-		return
+		// This is end of event msg, flush the msg with that sequence and
+		// discard this one
+		msgGroup := a.completeMessage(aMsg.Seq)
+		msg = &message.AuditMessage{}
+		msg.Msg, _ = json.Marshal(msgGroup)
+		return msg
 	}
 
 	if val, ok := a.msgs[aMsg.Seq]; ok {
@@ -72,10 +78,11 @@ func (a *AuditMarshaller) Consume(nlMsg *syscall.NetlinkMessage) {
 		val.AddMessage(aMsg)
 	} else {
 		// Create a new AuditMessageGroup
-		a.msgs[aMsg.Seq] = NewAuditMessageGroup(aMsg)
+		a.msgs[aMsg.Seq] = parser.NewAuditMessageGroup(aMsg)
 	}
 
 	a.flushOld()
+	return msg
 }
 
 // Outputs any messages that are old enough
@@ -90,21 +97,18 @@ func (a *AuditMarshaller) flushOld() {
 }
 
 // Write a complete message group to the configured output in json format
-func (a *AuditMarshaller) completeMessage(seq int) {
-	var msg *AuditMessageGroup
+func (a *AuditMarshaller) completeMessage(seq int) *parser.AuditMessageGroup {
+	var msg *parser.AuditMessageGroup
 	var ok bool
 
 	if msg, ok = a.msgs[seq]; !ok {
 		//TODO: attempted to complete a missing message, log?
-		return
-	}
-
-	if err := a.writer.Write(msg); err != nil {
-		glog.Error("Failed to write message. Error:", err)
-		os.Exit(1)
+		glog.Warningf("Message sequence id: %s not found", seq)
+		return nil
 	}
 
 	delete(a.msgs, seq)
+	return msg
 }
 
 // Track sequence numbers and log if we suspect we missed a message

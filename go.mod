@@ -1,6 +1,6 @@
-module github.com/slackhq/go-audit
+module github.com/open-osquery/auditrd
 
-go 1.12
+go 1.16
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
@@ -35,7 +35,6 @@ require (
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/grpc v1.25.1 // indirect
-	gopkg.in/Graylog2/go-gelf.v2 v2.0.0-20180326133423-4dbb9d721348
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v2 v2.0.0-20160912165603-31c299268d30 // indirect
 	gotest.tools v2.2.0+incompatible // indirect

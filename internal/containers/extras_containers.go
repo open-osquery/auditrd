@@ -1,7 +1,7 @@
 // +build amd64
 // +build !nocontainers
 
-package main
+package containers
 
 import (
 	"context"
@@ -12,8 +12,11 @@ import (
 	dockerclient "github.com/docker/docker/client"
 	"github.com/golang/glog"
 	"github.com/golang/groupcache/lru"
+	"github.com/open-osquery/auditrd/internal/parser"
 	"github.com/spf13/viper"
 )
+
+var spaceChar = byte(' ')
 
 func init() {
 	RegisterExtraParser(func(config *viper.Viper) (ExtraParser, error) {
@@ -94,7 +97,7 @@ func NewContainerParser(config *viper.Viper) (*ContainerParser, error) {
 }
 
 // Find `pid=` in a message and adds the container ids to the Extra object
-func (c ContainerParser) Parse(am *AuditMessage) {
+func (c ContainerParser) Parse(am *parser.AuditMessage) {
 	switch am.Type {
 	case 1300, 1326:
 		am.Containers = c.getContainersForPid(getPid(am.Data))

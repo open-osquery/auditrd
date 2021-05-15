@@ -1,4 +1,4 @@
-BUILD_NUMBER ?= dev+$(shell date -u '+%Y%m%d%H%M%S')
+BUILD_NUMBER ?= $(shell git describe --always --dirty)-$(shell date -u '+%Y%m%d%H%M%S')
 GO111MODULE = on
 export GO111MODULE
 
@@ -7,7 +7,7 @@ LDFLAGS = -X main.Build=$(BUILD_NUMBER)
 ALL = linux-amd64
 
 bin:
-	go build -ldflags "$(LDFLAGS)"
+	go build -ldflags "$(LDFLAGS)" pkg/cmd/audit.go
 
 test:
 	go test -v

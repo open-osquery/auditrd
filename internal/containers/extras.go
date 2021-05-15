@@ -1,14 +1,15 @@
-package main
+package containers
 
 import (
 	"github.com/golang/glog"
+	"github.com/open-osquery/auditrd/internal/parser"
 	"github.com/spf13/viper"
 )
 
 var extraParserConstructors = []func(config *viper.Viper) (ExtraParser, error){}
 
 type ExtraParser interface {
-	Parse(am *AuditMessage)
+	Parse(am *parser.AuditMessage)
 }
 
 type ExtraParsers []ExtraParser
@@ -31,7 +32,7 @@ func createExtraParsers(config *viper.Viper) ExtraParsers {
 	return extraParsers
 }
 
-func (ps ExtraParsers) Parse(am *AuditMessage) {
+func (ps ExtraParsers) Parse(am *parser.AuditMessage) {
 	for _, p := range ps {
 		p.Parse(am)
 	}

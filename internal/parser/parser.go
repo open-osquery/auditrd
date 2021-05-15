@@ -1,4 +1,4 @@
-package main
+package parser
 
 import (
 	"bytes"
@@ -50,7 +50,7 @@ func NewAuditMessageGroup(am *AuditMessage) *AuditMessageGroup {
 	return amg
 }
 
-// Creates a new go-audit message from a netlink message
+// Creates a new auditrd message from a netlink message
 func NewAuditMessage(nlm *syscall.NetlinkMessage) *AuditMessage {
 	aTime, seq := parseAuditHeader(nlm)
 	return &AuditMessage{

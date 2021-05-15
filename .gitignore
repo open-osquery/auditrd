@@ -1,4 +1,4 @@
-go-audit
+audit
 go-audit.yaml
 !examples/**
 *.pprof

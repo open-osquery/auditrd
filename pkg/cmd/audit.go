@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"flag"
+	"io"
 	"log"
 	"os"
 
 	"github.com/golang/glog"
+	"github.com/open-osquery/auditrd/internal/client"
+	"github.com/open-osquery/auditrd/internal/marshaller"
 )
 
 // A version string that can be set with
@@ -15,11 +20,10 @@ import (
 var Build string
 
 func main() {
-	writer := NewAuditWriter(os.Stdout, 1)
-	marshaller := NewAuditMarshaller(
-		writer, 0, 10000, true, false, 5)
+	flag.Parse()
+	marshaller := marshaller.NewAuditMarshaller(1100, 1400, true, false, 5)
 
-	nlClient, err := NewNetlinkClient(1024)
+	nlClient, err := client.NewNetlinkClient(1024)
 	if err != nil {
 		log.Fatalln("Failed to create the netlink client")
 	}
@@ -31,6 +35,10 @@ func main() {
 			continue
 		}
 
-		marshaller.Consume(msg)
+		v := marshaller.Process(msg)
+		if v != nil {
+			v.Msg = append(v.Msg, '\n')
+			io.Copy(os.Stdout, bytes.NewBuffer(v.Msg))
+		}
 	}
 }
