@@ -8,81 +8,146 @@ import (
 	"strings"
 )
 
-type auditFIMContext struct {
+var eventParsers = map[uint16]func(*auditContext, AuditMessageTokenMap){
+	1300: parseSyscallEvent,
+	1302: parsePathEvent,
+	1307: parseCwdEvent,
+	1327: parseProctitleEvent,
+}
+
+type auditContext struct {
+	// User IDs in the process context
 	uid, gid     int
 	euid, egid   int
 	suid, sgid   int
 	fsuid, fsgid int
 	auid         int
 
+	// Fields from the syscall audit record
 	executable string
-	pid, ppid  int
 	comm       string
-	ses        int
 	tty        string
 	arch       string
-	syscall    int
-	exit       int
 	success    string
 	key        string
+	syscall    int
+	pid        int
+	ppid       int
+	ses        int
+	exit       int
 
+	// Proctitle record
 	proctitle string
+
+	// Fields from the audit path record
 	cwd       string
 	path      string
 	dest_path string
-
 	pathItems [5]string
+
+	// Event type which shall be inferred from the events it contains
+	eventType string
 }
 
-func ParseFIMEvent(tokenList []AuditMessageTokenMap) *AuditEvent {
-	ctx := new(auditFIMContext)
+func newAuditContext() *auditContext {
+	ctx := new(auditContext)
+	ctx.syscall = -1
+	return ctx
+}
+
+// ParseAuditEvent is a audit message parser that reads all the events for an
+// audit event id and returns 2 types of AuditEvents, "process_event" and
+// "fim_event" depending on what syscalls they were emitted for. If the list of
+// audit events don't qualify for either of them, a nil event and false is
+// returned which must be checked to identify a failed parsing.
+func ParseAuditEvent(tokenList []AuditMessageTokenMap) (*AuditEvent, bool) {
+	ctx := newAuditContext()
+
 	for _, v := range tokenList {
-		switch v.AuditEventType {
-		case 1300:
-			parseSyscallEvent(ctx, v)
-		case 1302:
-			parsePathEvent(ctx, v)
-		case 1307:
-			parseCwdEvent(ctx, v)
-		case 1327:
-			parseProctitleEvent(ctx, v)
+		if parser, ok := eventParsers[v.AuditEventType]; ok {
+			parser(ctx, v)
 		}
 	}
 
-	ae := &AuditEvent{
-		Arch:        ctx.arch,
-		Syscall:     ctx.syscall,
-		Success:     ctx.success,
-		Exit:        ctx.exit,
-		Ppid:        ctx.ppid,
-		Pid:         ctx.pid,
-		Auid:        ctx.auid,
-		Uid:         ctx.uid,
-		Gid:         ctx.gid,
-		Euid:        ctx.euid,
-		Suid:        ctx.suid,
-		Fsuid:       ctx.fsuid,
-		Egid:        ctx.egid,
-		Sgid:        ctx.sgid,
-		Fsgid:       ctx.fsgid,
-		Tty:         ctx.tty,
-		Session:     ctx.ses,
-		Comm:        ctx.comm,
-		Exectuable:  ctx.executable,
-		Commandline: ctx.proctitle,
-		Cwd:         ctx.cwd,
-		Key:         ctx.key,
+	if IsExecSyscall(ctx.syscall) {
+		return parseProcessEvent(ctx)
+	} else if IsFIMSyscall(ctx.syscall) {
+		return parseFIMEvent(ctx)
+	} else {
+		return nil, false
 	}
-
-	resolvePath(ctx)
-
-	ae.Path = ctx.path
-	ae.DestPath = ctx.dest_path
-
-	return ae
 }
 
-func resolvePath(ctx *auditFIMContext) {
+func parseProcessEvent(auditCtx *auditContext) (*AuditEvent, bool) {
+	ae := &AuditEvent{
+		Arch:        auditCtx.arch,
+		Syscall:     SyscallName(auditCtx.syscall),
+		Success:     auditCtx.success,
+		Exit:        auditCtx.exit,
+		Ppid:        auditCtx.ppid,
+		Pid:         auditCtx.pid,
+		Auid:        auditCtx.auid,
+		Uid:         auditCtx.uid,
+		Gid:         auditCtx.gid,
+		Euid:        auditCtx.euid,
+		Suid:        auditCtx.suid,
+		Fsuid:       auditCtx.fsuid,
+		Egid:        auditCtx.egid,
+		Sgid:        auditCtx.sgid,
+		Fsgid:       auditCtx.fsgid,
+		Tty:         auditCtx.tty,
+		Session:     auditCtx.ses,
+		Comm:        auditCtx.comm,
+		Exectuable:  auditCtx.executable,
+		Commandline: auditCtx.proctitle,
+		Cwd:         auditCtx.cwd,
+		Key:         auditCtx.key,
+		Name:        "process_event",
+	}
+
+	return ae, true
+}
+
+func parseFIMEvent(auditCtx *auditContext) (*AuditEvent, bool) {
+	// Since this a FIM event, there must be filepaths involved other than the
+	// regular 2 AUDIT_PATH record. It's necessary to get those paths resolved
+	// to their absolute paths for processing.
+	resolvePath(auditCtx)
+
+	ae := &AuditEvent{
+		Arch:        auditCtx.arch,
+		Syscall:     SyscallName(auditCtx.syscall),
+		Success:     auditCtx.success,
+		Exit:        auditCtx.exit,
+		Ppid:        auditCtx.ppid,
+		Pid:         auditCtx.pid,
+		Auid:        auditCtx.auid,
+		Uid:         auditCtx.uid,
+		Gid:         auditCtx.gid,
+		Euid:        auditCtx.euid,
+		Suid:        auditCtx.suid,
+		Fsuid:       auditCtx.fsuid,
+		Egid:        auditCtx.egid,
+		Sgid:        auditCtx.sgid,
+		Fsgid:       auditCtx.fsgid,
+		Tty:         auditCtx.tty,
+		Session:     auditCtx.ses,
+		Comm:        auditCtx.comm,
+		Exectuable:  auditCtx.executable,
+		Commandline: auditCtx.proctitle,
+		Cwd:         auditCtx.cwd,
+		Key:         auditCtx.key,
+		Name:        "fim_event",
+	}
+
+	// Additional steps in case the syscall is of the rename family
+	ae.Path = auditCtx.path
+	ae.DestPath = auditCtx.dest_path
+
+	return ae, true
+}
+
+func resolvePath(ctx *auditContext) {
 	l := 0
 	for i := 0; i < 5; i++ {
 		ctx.pathItems[i] = strings.Trim(ctx.pathItems[i], `"`)
@@ -143,9 +208,7 @@ func normalizePath(cwd, path_cwd, path string) string {
 	return filepath.Join(path_cwd, rp)
 }
 
-func parseSyscallEvent(
-	ctx *auditFIMContext, m AuditMessageTokenMap,
-) {
+func parseSyscallEvent(ctx *auditContext, m AuditMessageTokenMap) {
 	if m.AuditEventType != 1300 {
 		return
 	}
@@ -176,7 +239,7 @@ func parseSyscallEvent(
 	ctx.key = strings.Trim(m.Tokens["key"], `"`)
 }
 
-func parseCwdEvent(ctx *auditFIMContext, m AuditMessageTokenMap) {
+func parseCwdEvent(ctx *auditContext, m AuditMessageTokenMap) {
 	if m.AuditEventType != 1307 {
 		return
 	}
@@ -184,7 +247,7 @@ func parseCwdEvent(ctx *auditFIMContext, m AuditMessageTokenMap) {
 	ctx.cwd = strings.Trim(m.Tokens["cwd"], `"`)
 }
 
-func parsePathEvent(ctx *auditFIMContext, m AuditMessageTokenMap) {
+func parsePathEvent(ctx *auditContext, m AuditMessageTokenMap) {
 	if m.AuditEventType != 1302 {
 		return
 	}
@@ -193,7 +256,7 @@ func parsePathEvent(ctx *auditFIMContext, m AuditMessageTokenMap) {
 	ctx.pathItems[item] = m.Tokens["name"]
 }
 
-func parseProctitleEvent(ctx *auditFIMContext, m AuditMessageTokenMap) {
+func parseProctitleEvent(ctx *auditContext, m AuditMessageTokenMap) {
 	if m.AuditEventType != 1327 {
 		return
 	}

@@ -49,7 +49,10 @@ func NewAuditMarshaller(
 // activated
 func debug(aMsg *AuditMessage) {
 	if glog.V(2) {
-		fmt.Fprintf(os.Stderr, "(%s:%d) %s\n", aMsg.AuditTime, aMsg.Seq, aMsg.Data)
+		fmt.Fprintf(
+			os.Stderr,
+			"(%s:%d:%4d) %s\n",
+			aMsg.AuditTime, aMsg.Seq, aMsg.Type, aMsg.Data)
 	}
 }
 

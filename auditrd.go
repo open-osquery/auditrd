@@ -6,11 +6,12 @@ import (
 	"github.com/golang/glog"
 )
 
-//go:generate easytags $GOFILE
+//go:generate gomodifytags -file $GOFILE -struct AuditEvent -add-tags json -w
 type AuditEvent struct {
-	Arch        string `json:"arch"`
-	Success     string `json:"success"`
-	Syscall     int    `json:"syscall"`
+	Name        string `json:"name"`
+	Arch        string `json:"arch,omitempty"`
+	Success     string `json:"success,omitempty"`
+	Syscall     string `json:"syscall"`
 	Exit        int    `json:"exit"`
 	Ppid        int    `json:"ppid"`
 	Pid         int    `json:"pid"`
@@ -18,18 +19,18 @@ type AuditEvent struct {
 	Uid         int    `json:"uid"`
 	Gid         int    `json:"gid"`
 	Euid        int    `json:"euid"`
-	Suid        int    `json:"suid"`
-	Fsuid       int    `json:"fsuid"`
 	Egid        int    `json:"egid"`
-	Sgid        int    `json:"sgid"`
+	Fsuid       int    `json:"fsuid"`
 	Fsgid       int    `json:"fsgid"`
+	Suid        int    `json:"suid"`
+	Sgid        int    `json:"sgid"`
 	Session     int    `json:"session"`
-	Tty         string `json:"tty"`
-	Comm        string `json:"comm"`
-	Key         string `json:"key"`
-	Cwd         string `json:"cwd"`
-	Exectuable  string `json:"exectuable"`
-	Commandline string `json:"commandline"`
+	Tty         string `json:"tty,omitempty"`
+	Comm        string `json:"comm,omitempty"`
+	Key         string `json:"key,omitempty"`
+	Cwd         string `json:"cwd,omitempty"`
+	Exectuable  string `json:"exectuable,omitempty"`
+	Commandline string `json:"commandline,omitempty"`
 	Path        string `json:"path,omitempty"`
 	DestPath    string `json:"dest_path,omitempty"`
 }
@@ -44,8 +45,8 @@ type AuditMessage struct {
 }
 
 type AuditMessageTokenMap struct {
-	AuditEventType uint16            `json:"audit_event_type"`
-	Tokens         map[string]string `json:"tokens"`
+	AuditEventType uint16
+	Tokens         map[string]string
 }
 
 type AuditMessageGroup struct {
@@ -64,6 +65,7 @@ func NewAuditReader(
 	auditMessageBufferSize int,
 	recvSize int,
 ) (chan *AuditMessageGroup, error) {
+	generateSyscallMap()
 	out := make(chan *AuditMessageGroup, auditMessageBufferSize)
 	marshaller := NewAuditMarshaller(out,
 		minAuditEventType, maxAuditEventType, true, false, 5)

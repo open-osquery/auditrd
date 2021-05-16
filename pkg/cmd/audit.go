@@ -28,8 +28,10 @@ func main() {
 				})
 			}
 
-			ev := auditrd.ParseFIMEvent(tokenList)
-			json.NewEncoder(os.Stdout).Encode(ev)
+			ev, ok := auditrd.ParseAuditEvent(tokenList)
+			if ok {
+				json.NewEncoder(os.Stdout).Encode(ev)
+			}
 		}
 	}
 }

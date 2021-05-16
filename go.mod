@@ -5,7 +5,6 @@ go 1.16
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
-	github.com/betacraft/easytags v1.0.2 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.4.2-0.20190522125255-080524218ed4
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -26,6 +25,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pelletier/go-buffruneio v0.1.0 // indirect
 	github.com/pelletier/go-toml v0.0.0-20160906202557-31055c2ff0bb // indirect
+	github.com/pkg/errors v0.8.1
 	github.com/pkg/sftp v0.0.0-20160908100035-8197a2e58073 // indirect
 	github.com/spf13/afero v0.0.0-20160821083612-20500e2abd0d // indirect
 	github.com/spf13/cast v0.0.0-20160730092037-e31f36ffc91a // indirect

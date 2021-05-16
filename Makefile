@@ -1,4 +1,4 @@
-BUILD_NUMBER ?= $(shell git describe --always --dirty)-$(shell date -u '+%Y%m%d%H%M%S')
+BUILD_NUMBER ?= $(shell git describe --always --long --tags --dirty)-$(shell date -u '+%Y%m%d%H%M%S')
 GO111MODULE = on
 export GO111MODULE
 
