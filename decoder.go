@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+type AuditEventType string
+
+var (
+	ProcessEvent AuditEventType = "process_event"
+	FIMEvent     AuditEventType = "fim_event"
+)
+
+// eventParsers is a map that holds functions that contains parser for different
+// audit message types which take in a parsed audit message token map and
+// populates the Audit context passed to it.
 var eventParsers = map[uint16]func(*auditContext, AuditMessageTokenMap){
 	1300: parseSyscallEvent,
 	1302: parsePathEvent,
@@ -15,6 +25,9 @@ var eventParsers = map[uint16]func(*auditContext, AuditMessageTokenMap){
 	1327: parseProctitleEvent,
 }
 
+// The auditContext keeps track of a single audit event id and all the
+// information it contains. Once it's parsed, it can be inspected to determine
+// what kind of event is it.
 type auditContext struct {
 	// User IDs in the process context
 	uid, gid     int
@@ -71,13 +84,16 @@ func ParseAuditEvent(tokenList []AuditMessageTokenMap) (*AuditEvent, bool) {
 
 	if IsExecSyscall(ctx.syscall) {
 		return parseProcessEvent(ctx)
-	} else if IsFIMSyscall(ctx.syscall) {
-		return parseFIMEvent(ctx)
-	} else {
-		return nil, false
 	}
+	if IsFIMSyscall(ctx.syscall) {
+		return parseFIMEvent(ctx)
+	}
+
+	return nil, false
 }
 
+// Create a process Event from an audit context once it's detected as a process
+// event.
 func parseProcessEvent(auditCtx *auditContext) (*AuditEvent, bool) {
 	ae := &AuditEvent{
 		Arch:        auditCtx.arch,
@@ -102,12 +118,13 @@ func parseProcessEvent(auditCtx *auditContext) (*AuditEvent, bool) {
 		Commandline: auditCtx.proctitle,
 		Cwd:         auditCtx.cwd,
 		Key:         auditCtx.key,
-		Name:        "process_event",
+		Name:        ProcessEvent,
 	}
 
 	return ae, true
 }
 
+// Creates a FIM Event from an audit context once it's detected as a FIM event.
 func parseFIMEvent(auditCtx *auditContext) (*AuditEvent, bool) {
 	// Since this a FIM event, there must be filepaths involved other than the
 	// regular 2 AUDIT_PATH record. It's necessary to get those paths resolved
@@ -137,7 +154,7 @@ func parseFIMEvent(auditCtx *auditContext) (*AuditEvent, bool) {
 		Commandline: auditCtx.proctitle,
 		Cwd:         auditCtx.cwd,
 		Key:         auditCtx.key,
-		Name:        "fim_event",
+		Name:        FIMEvent,
 	}
 
 	// Additional steps in case the syscall is of the rename family

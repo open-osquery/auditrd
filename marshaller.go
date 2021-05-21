@@ -13,7 +13,7 @@ const (
 	EVENT_EOE = 1320 // End of multi packet event
 )
 
-type AuditMarshaller struct {
+type auditMarshaller struct {
 	writer            chan *AuditMessageGroup
 	msgs              map[int]*AuditMessageGroup
 	lastSeq           int
@@ -28,12 +28,12 @@ type AuditMarshaller struct {
 }
 
 // Create a new marshaller
-func NewAuditMarshaller(
+func newAuditMarshaller(
 	writer chan *AuditMessageGroup,
 	minAuditEventType uint16, maxAuditEventType uint16,
 	trackMessages, logOOO bool, maxOOO int,
-) *AuditMarshaller {
-	return &AuditMarshaller{
+) *auditMarshaller {
+	return &auditMarshaller{
 		writer:            writer,
 		msgs:              make(map[int]*AuditMessageGroup, 5), // It is not typical to have more than 2 message groups at any given time
 		missed:            make(map[int]bool, 10),
@@ -57,8 +57,8 @@ func debug(aMsg *AuditMessage) {
 }
 
 // Ingests a netlink message and likely prepares it to be logged
-func (a *AuditMarshaller) Process(nlMsg *syscall.NetlinkMessage) {
-	aMsg := NewAuditMessage(nlMsg)
+func (a *auditMarshaller) Process(nlMsg *syscall.NetlinkMessage) {
+	aMsg := newAuditMessage(nlMsg)
 
 	if aMsg.Seq == 0 {
 		// We got an invalid audit message, return the current message and reset
@@ -90,7 +90,7 @@ func (a *AuditMarshaller) Process(nlMsg *syscall.NetlinkMessage) {
 		val.AddMessage(aMsg)
 	} else {
 		// Create a new AuditMessageGroup
-		a.msgs[aMsg.Seq] = NewAuditMessageGroup(aMsg)
+		a.msgs[aMsg.Seq] = newAuditMessageGroup(aMsg)
 	}
 
 	a.flushOld()
@@ -99,7 +99,7 @@ func (a *AuditMarshaller) Process(nlMsg *syscall.NetlinkMessage) {
 
 // Outputs any messages that are old enough
 // This is because there is no indication of multi message events coming from kaudit
-func (a *AuditMarshaller) flushOld() {
+func (a *auditMarshaller) flushOld() {
 	now := time.Now()
 	for seq, msg := range a.msgs {
 		if msg.CompleteAfter.Before(now) || now.Equal(msg.CompleteAfter) {
@@ -109,7 +109,7 @@ func (a *AuditMarshaller) flushOld() {
 }
 
 // Write a complete message group to the configured output in json format
-func (a *AuditMarshaller) completeMessage(seq int) {
+func (a *auditMarshaller) completeMessage(seq int) {
 	var msg *AuditMessageGroup
 	var ok bool
 
@@ -124,9 +124,10 @@ func (a *AuditMarshaller) completeMessage(seq int) {
 }
 
 // Track sequence numbers and log if we suspect we missed a message
-func (a *AuditMarshaller) detectMissing(seq int) {
+func (a *auditMarshaller) detectMissing(seq int) {
 	if seq > a.lastSeq+1 && a.lastSeq != 0 {
-		// We likely leap frogged over a msg, wait until the next sequence to make sure
+		// We likely leap frogged over a msg, wait until the next sequence to
+		// make sure
 		for i := a.lastSeq + 1; i < seq; i++ {
 			a.missed[i] = true
 		}
@@ -140,11 +141,16 @@ func (a *AuditMarshaller) detectMissing(seq int) {
 			}
 
 			if a.logOutOfOrder {
-				glog.V(2).Infoln("Got sequence", missedSeq, "after", lag, "messages. Worst lag so far", a.worstLag, "messages")
+				glog.V(2).Infoln(
+					"Got sequence", missedSeq,
+					"after", lag,
+					"messages. Worst lag so far", a.worstLag, "messages")
 			}
 			delete(a.missed, missedSeq)
 		} else if seq-missedSeq > a.maxOutOfOrder {
-			glog.V(2).Infof("Likely missed sequence %d, current %d, worst message delay %d", missedSeq, seq, a.worstLag)
+			glog.V(2).Infof(
+				"Likely missed sequence %d, current %d, worst message delay %d",
+				missedSeq, seq, a.worstLag)
 			delete(a.missed, missedSeq)
 		}
 	}

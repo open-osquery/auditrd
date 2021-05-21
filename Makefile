@@ -7,7 +7,7 @@ LDFLAGS = -X main.Build=$(BUILD_NUMBER)
 ALL = linux-amd64
 
 bin:
-	go generate
+	go generate > /dev/null
 	go build -ldflags "$(LDFLAGS)" pkg/cmd/audit.go
 
 test:
