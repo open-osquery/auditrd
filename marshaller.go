@@ -28,7 +28,7 @@ type auditMarshaller struct {
 }
 
 // Create a new marshaller
-func newAuditMarshaller(
+func NewAuditMarshaller(
 	writer chan *AuditMessageGroup,
 	minAuditEventType uint16, maxAuditEventType uint16,
 	trackMessages, logOOO bool, maxOOO int,
@@ -59,9 +59,9 @@ func debug(aMsg *AuditMessage) {
 // Ingests a netlink message and likely prepares it to be logged
 func (a *auditMarshaller) Process(nlMsg *syscall.NetlinkMessage) {
 	aMsg := newAuditMessage(nlMsg)
-
 	if aMsg.Seq == 0 {
 		// We got an invalid audit message, return the current message and reset
+		glog.V(2).Infoln("Got a message with seq id 0, ignoring")
 		a.flushOld()
 		return
 	}
@@ -87,7 +87,7 @@ func (a *auditMarshaller) Process(nlMsg *syscall.NetlinkMessage) {
 
 	if val, ok := a.msgs[aMsg.Seq]; ok {
 		// Use the original AuditMessageGroup if we have one
-		val.AddMessage(aMsg)
+		val.addMessage(aMsg)
 	} else {
 		// Create a new AuditMessageGroup
 		a.msgs[aMsg.Seq] = newAuditMessageGroup(aMsg)
@@ -115,7 +115,7 @@ func (a *auditMarshaller) completeMessage(seq int) {
 
 	if msg, ok = a.msgs[seq]; !ok {
 		//TODO: attempted to complete a missing message, log?
-		glog.Warningf("Message sequence id: %s not found", seq)
+		glog.Warningf("Message sequence id: %d not found", seq)
 		return
 	}
 

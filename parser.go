@@ -30,7 +30,7 @@ func newAuditMessageGroup(am *AuditMessage) *AuditMessageGroup {
 		Msgs:          make([]*AuditMessage, 0, 6),
 	}
 
-	amg.AddMessage(am)
+	amg.addMessage(am)
 	return amg
 }
 

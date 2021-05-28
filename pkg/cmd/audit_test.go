@@ -1,15 +1,18 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
 	"syscall"
 	"testing"
+
+	"github.com/josharian/native"
+	"github.com/open-osquery/auditrd"
 )
 
-func Benchmark_MultiPacketMessage(b *testing.B) {
-	marshaller := NewAuditMarshaller(NewAuditWriter(&noopWriter{}, 1), uint16(1300), uint16(1399), false, false, 1)
+var Endianness = native.Endian
 
+func BenchmarkMultiPacketMessage(b *testing.B) {
+	out := make(chan *auditrd.AuditMessageGroup)
+	marshaller := auditrd.NewAuditMarshaller(out, 1100, 1400, true, false, 5)
 	data := make([][]byte, 6)
 
 	//&{1300,,arch=c000003e,syscall=59,success=yes,exit=0,a0=cc4e68,a1=d10bc8,a2=c69808,a3=7fff2a700900,items=2,ppid=11552,pid=11623,auid=1000,uid=1000,gid=1000,euid=1000,suid=1000,fsuid=1000,egid=1000,sgid=1000,fsgid=1000,tty=pts0,ses=35,comm="ls",exe="/bin/ls",key=(null),1222763,1459376866.885}
@@ -30,34 +33,26 @@ func Benchmark_MultiPacketMessage(b *testing.B) {
 	//&{1320,,,1222763,1459376866.885}
 	data[5] = []byte{31, 0, 0, 0, 40, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 97, 117, 100, 105, 116, 40, 49, 52, 53, 57, 51, 55, 54, 56, 54, 54, 46, 56, 56, 53, 58, 49, 50, 50, 50, 55, 54, 51, 41, 58, 32}
 
-	for i := 0; i < b.N; i++ {
-		for n := 0; n < len(data); n++ {
-			nlen := len(data[n])
-			msg := &syscall.NetlinkMessage{
-				Header: syscall.NlMsghdr{
-					Len:   Endianness.Uint32(data[n][0:4]),
-					Type:  Endianness.Uint16(data[n][4:6]),
-					Flags: Endianness.Uint16(data[n][6:8]),
-					Seq:   Endianness.Uint32(data[n][8:12]),
-					Pid:   Endianness.Uint32(data[n][12:16]),
-				},
-				Data: data[n][syscall.SizeofNlMsghdr:nlen],
+	go func() {
+		for i := 0; i < b.N; i++ {
+			for n := 0; n < len(data); n++ {
+				nlen := len(data[n])
+				msg := &syscall.NetlinkMessage{
+					Header: syscall.NlMsghdr{
+						Len:   Endianness.Uint32(data[n][0:4]),
+						Type:  Endianness.Uint16(data[n][4:6]),
+						Flags: Endianness.Uint16(data[n][6:8]),
+						Seq:   Endianness.Uint32(data[n][8:12]),
+						Pid:   Endianness.Uint32(data[n][12:16]),
+					},
+					Data: data[n][syscall.SizeofNlMsghdr:nlen],
+				}
+				marshaller.Process(msg)
 			}
-			marshaller.Consume(msg)
 		}
+		close(out)
+	}()
+
+	for range out {
 	}
-}
-
-type noopWriter struct{ t *testing.T }
-
-func (t *noopWriter) Write(a []byte) (int, error) {
-	return 0, nil
-}
-
-func createTempFile(t *testing.T, name string, contents string) string {
-	file := os.TempDir() + string(os.PathSeparator) + "go-audit." + name
-	if err := ioutil.WriteFile(file, []byte(contents), os.FileMode(0644)); err != nil {
-		t.Fatal("Failed to create temp file", err)
-	}
-	return file
 }

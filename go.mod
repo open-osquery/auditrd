@@ -15,6 +15,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/hashicorp/hcl v0.0.0-20160902165219-99df0eb941dd // indirect
+	github.com/josharian/native v0.0.0-20200817173448-b6b71def0850
 	github.com/kr/fs v0.0.0-20131111012553-2788f0dbd169 // indirect
 	github.com/kr/pretty v0.0.0-20160823170715-cfb55aafdaf3 // indirect
 	github.com/kr/text v0.0.0-20160504234017-7cafcd837844 // indirect
@@ -32,7 +33,6 @@ require (
 	github.com/spf13/jwalterweatherman v0.0.0-20160311093646-33c24e77fb80 // indirect
 	github.com/spf13/pflag v0.0.0-20160911194638-7b17cc4658ef // indirect
 	github.com/spf13/viper v0.0.0-20170217163817-7538d73b4eb9
-	github.com/stretchr/testify v1.2.2
 	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	google.golang.org/grpc v1.25.1 // indirect

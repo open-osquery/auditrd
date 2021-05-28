@@ -65,7 +65,7 @@ type AuditMessageGroup struct {
 	Msgs          []*AuditMessage `json:"messages"`
 }
 
-func (amg *AuditMessageGroup) AddMessage(am *AuditMessage) {
+func (amg *AuditMessageGroup) addMessage(am *AuditMessage) {
 	amg.Msgs = append(amg.Msgs, am)
 }
 
@@ -79,9 +79,9 @@ func NewAuditReader(
 ) (chan *AuditMessageGroup, error) {
 	generateSyscallMap()
 	out := make(chan *AuditMessageGroup, auditMessageBufferSize)
-	marshaller := newAuditMarshaller(out,
+	marshaller := NewAuditMarshaller(out,
 		minAuditEventType, maxAuditEventType, true, false, 5)
-	nlClient, err := NewNetlinkClient(recvSize)
+	nlClient, err := NewNetlinkClient(recvSize, false)
 	if err != nil {
 		return nil, err
 	}

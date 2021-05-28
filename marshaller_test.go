@@ -1,162 +1,147 @@
 package auditrd
 
 import (
-	"bytes"
-	"errors"
 	"syscall"
 	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
 )
 
-func TestMarshallerConstants(t *testing.T) {
-	assert.Equal(t, 1320, EVENT_EOE)
+// #define NLMSG_ALIGNTO   4U
+const nlmsgAlignTo = 4
+
+// #define NLMSG_ALIGN(len) ( ((len)+NLMSG_ALIGNTO-1) & ~(NLMSG_ALIGNTO-1) )
+func nlmsgAlign(len int) int {
+	return ((len) + nlmsgAlignTo - 1) & ^(nlmsgAlignTo - 1)
 }
 
-func TestAuditMarshaller_Consume(t *testing.T) {
-	w := &bytes.Buffer{}
-	m := NewAuditMarshaller(NewAuditWriter(w, 1), uint16(1100), uint16(1399), false, false, 0)
-
-	// Flush group on 1320
-	m.Consume(&syscall.NetlinkMessage{
+func msg1300() *syscall.NetlinkMessage {
+	m := &syscall.NetlinkMessage{
 		Header: syscall.NlMsghdr{
-			Len:   uint32(44),
-			Type:  uint16(1300),
+			Len:   uint32(0),
+			Type:  AUDIT_SYSCALL,
 			Flags: uint16(0),
-			Seq:   uint32(0),
+			Seq:   uint32(1),
 			Pid:   uint32(0),
 		},
-		Data: []byte("audit(10000001:1): hi there"),
-	})
-
-	m.Consume(&syscall.NetlinkMessage{
-		Header: syscall.NlMsghdr{
-			Len:   uint32(44),
-			Type:  uint16(1301),
-			Flags: uint16(0),
-			Seq:   uint32(0),
-			Pid:   uint32(0),
-		},
-		Data: []byte("audit(10000001:1): hi there"),
-	})
-
-	m.Consume(new1320("1"))
-
-	assert.Equal(
-		t,
-		"{\"sequence\":1,\"timestamp\":\"10000001\",\"messages\":[{\"type\":1300,\"data\":\"hi there\"},{\"type\":1301,\"data\":\"hi there\"}]}\n",
-		w.String(),
-	)
-	assert.Equal(t, 0, len(m.msgs))
-
-	// Ignore below 1100
-	w.Reset()
-	m.Consume(&syscall.NetlinkMessage{
-		Header: syscall.NlMsghdr{
-			Len:   uint32(44),
-			Type:  uint16(1099),
-			Flags: uint16(0),
-			Seq:   uint32(0),
-			Pid:   uint32(0),
-		},
-		Data: []byte("audit(10000001:2): hi there"),
-	})
-
-	assert.Equal(t, 0, len(m.msgs))
-
-	// Ignore above 1399
-	w.Reset()
-	m.Consume(&syscall.NetlinkMessage{
-		Header: syscall.NlMsghdr{
-			Len:   uint32(44),
-			Type:  uint16(1400),
-			Flags: uint16(0),
-			Seq:   uint32(0),
-			Pid:   uint32(0),
-		},
-		Data: []byte("audit(10000001:3): hi there"),
-	})
-
-	assert.Equal(t, 0, len(m.msgs))
-
-	// Ignore sequences of 0
-	w.Reset()
-	m.Consume(&syscall.NetlinkMessage{
-		Header: syscall.NlMsghdr{
-			Len:   uint32(44),
-			Type:  uint16(1400),
-			Flags: uint16(0),
-			Seq:   uint32(0),
-			Pid:   uint32(0),
-		},
-		Data: []byte("audit(10000001:0): hi there"),
-	})
-
-	assert.Equal(t, 0, len(m.msgs))
-
-	// Should flush old msgs after 2 seconds
-	w.Reset()
-	m.Consume(&syscall.NetlinkMessage{
-		Header: syscall.NlMsghdr{
-			Len:   uint32(44),
-			Type:  uint16(1300),
-			Flags: uint16(0),
-			Seq:   uint32(0),
-			Pid:   uint32(0),
-		},
-		Data: []byte("audit(10000001:4): hi there"),
-	})
-
-	start := time.Now()
-	for len(m.msgs) != 0 {
-		m.Consume(new1320("0"))
+		Data: []byte(`audit(1621634984.633:49129): arch=c000003e syscall=59 success=yes exit=0 a0=5568f3453f40 a1=5568f34456a0 a2=5568f33115f0 a3=8 items=2 ppid=245843 pid=262165 auid=1000 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=pts3 ses=166 comm="auditctl" exe="/usr/sbin/auditctl" key=(null)`),
 	}
 
-	assert.Equal(t, "{\"sequence\":4,\"timestamp\":\"10000001\",\"messages\":[{\"type\":1300,\"data\":\"hi there\"}]}\n", w.String())
-	expected := start.Add(time.Second * 2)
-	assert.True(t, expected.Equal(time.Now()) || expected.Before(time.Now()), "Should have taken at least 2 seconds to flush")
-	assert.Equal(t, 0, len(m.msgs))
+	m.Header.Len = uint32(nlmsgAlign(16 + len(m.Data)))
+	return m
 }
 
-func TestAuditMarshaller_completeMessage(t *testing.T) {
-	//TODO: cant test because completeMessage calls exit
-	t.Skip()
-	return
-	// lb, elb := hookLogger()
-	// m := NewAuditMarshaller(NewAuditWriter(&FailWriter{}, 1), uint16(1300), uint16(1399), false, false, 0, []AuditFilter{})
-
-	// m.Consume(&syscall.NetlinkMessage{
-	// 	Header: syscall.NlMsghdr{
-	// 		Len:   uint32(44),
-	// 		Type:  uint16(1300),
-	// 		Flags: uint16(0),
-	// 		Seq:   uint32(0),
-	// 		Pid:   uint32(0),
-	// 	},
-	// 	Data: []byte("audit(10000001:4): hi there"),
-	// })
-
-	// m.completeMessage(4)
-	// assert.Equal(t, "!", lb.String())
-	// assert.Equal(t, "!", elb.String())
-}
-
-func new1320(seq string) *syscall.NetlinkMessage {
-	return &syscall.NetlinkMessage{
+func msg1309() *syscall.NetlinkMessage {
+	m := &syscall.NetlinkMessage{
 		Header: syscall.NlMsghdr{
-			Len:   uint32(44),
-			Type:  uint16(1320),
+			Len:   uint32(0),
+			Type:  AUDIT_EXECVE,
 			Flags: uint16(0),
-			Seq:   uint32(0),
+			Seq:   uint32(1),
 			Pid:   uint32(0),
 		},
-		Data: []byte("audit(10000001:" + seq + "): "),
+		Data: []byte(`audit(1621634984.633:49129): argc=2 a0="auditctl" a1="-l"`),
 	}
+
+	m.Header.Len = uint32(nlmsgAlign(16 + len(m.Data)))
+	return m
 }
 
-type FailWriter struct{}
+func msg1307() *syscall.NetlinkMessage {
+	m := &syscall.NetlinkMessage{
+		Header: syscall.NlMsghdr{
+			Len:   uint32(0),
+			Type:  AUDIT_CWD,
+			Flags: uint16(0),
+			Seq:   uint32(1),
+			Pid:   uint32(0),
+		},
+		Data: []byte(`audit(1621634984.633:49129): cwd="/etc"`),
+	}
+	m.Header.Len = uint32(nlmsgAlign(16 + len(m.Data)))
+	return m
+}
 
-func (f *FailWriter) Write(p []byte) (n int, err error) {
-	return 0, errors.New("derp")
+func msg1302(count int) []*syscall.NetlinkMessage {
+	var msgs = make([]*syscall.NetlinkMessage, 0, count)
+	msgs = append(msgs, &syscall.NetlinkMessage{
+		Header: syscall.NlMsghdr{
+			Len:   uint32(0),
+			Type:  AUDIT_PATH,
+			Flags: uint16(0),
+			Seq:   uint32(1),
+			Pid:   uint32(0),
+		},
+		Data: []byte(`audit(1621634984.633:49129): item=0 name="/usr/sbin/auditctl" inode=3036420 dev=fd:00 mode=0100755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0`),
+	})
+	msgs[0].Header.Len = uint32(nlmsgAlign(16 + len(msgs[0].Data)))
+
+	if count == 1 {
+		return msgs
+	}
+
+	msgs = append(msgs, &syscall.NetlinkMessage{
+		Header: syscall.NlMsghdr{
+			Len:   uint32(0),
+			Type:  AUDIT_PATH,
+			Flags: uint16(0),
+			Seq:   uint32(1),
+			Pid:   uint32(0),
+		},
+		Data: []byte(`audit(1621634984.633:49129): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=3020882 dev=fd:00 mode=0100755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0`),
+	})
+
+	msgs[1].Header.Len = uint32(nlmsgAlign(16 + len(msgs[1].Data)))
+
+	if count == 2 {
+		return msgs
+	}
+
+	return msgs
+}
+
+func msg1320() *syscall.NetlinkMessage {
+	m := &syscall.NetlinkMessage{
+		Header: syscall.NlMsghdr{
+			Len:   uint32(0),
+			Type:  AUDIT_EOE,
+			Flags: uint16(0),
+			Seq:   uint32(1),
+			Pid:   uint32(0),
+		},
+		Data: []byte(`audit(1621634984.633:49129): `),
+	}
+	m.Header.Len = uint32(nlmsgAlign(16 + len(m.Data)))
+	return m
+}
+
+func TestProcess(t *testing.T) {
+	w := make(chan *AuditMessageGroup, 10)
+	marshaller := NewAuditMarshaller(w, 1100, 1399, false, false, 0)
+
+	out := make([]*AuditMessageGroup, 0)
+
+	go func() {
+		p := msg1302(2)
+		marshaller.Process(msg1300())
+		marshaller.Process(msg1309())
+		marshaller.Process(msg1307())
+		marshaller.Process(p[0])
+		marshaller.Process(p[1])
+		marshaller.Process(msg1320())
+		marshaller.completeMessage(49129)
+		close(w)
+	}()
+
+	for v := range w {
+		out = append(out, v)
+	}
+
+	if len(out) != 1 {
+		t.Errorf("Should have had exactly one audit message group")
+		t.FailNow()
+	}
+
+	msgGroup := out[0]
+	if msgGroup.AuditTime != "1621634984.633" {
+		t.FailNow()
+	}
 }

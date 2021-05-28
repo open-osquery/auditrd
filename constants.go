@@ -1,0 +1,109 @@
+package auditrd
+
+const (
+	AUDIT_GET         uint16 = 1000 /* Get status */
+	AUDIT_SET         uint16 = 1001 /* Set status (enable/disable/auditd) */
+	AUDIT_LIST        uint16 = 1002 /* List syscall rules -- deprecated */
+	AUDIT_ADD         uint16 = 1003 /* Add syscall rule -- deprecated */
+	AUDIT_DEL         uint16 = 1004 /* Delete syscall rule -- deprecated */
+	AUDIT_USER        uint16 = 1005 /* Message from userspace -- deprecated */
+	AUDIT_LOGIN       uint16 = 1006 /* Define the login id and information */
+	AUDIT_WATCH_INS   uint16 = 1007 /* Insert file/dir watch entry */
+	AUDIT_WATCH_REM   uint16 = 1008 /* Remove file/dir watch entry */
+	AUDIT_WATCH_LIST  uint16 = 1009 /* List all file/dir watches */
+	AUDIT_SIGNAL_INFO uint16 = 1010 /* Get info about sender of signal to auditd */
+	AUDIT_ADD_RULE    uint16 = 1011 /* Add syscall filtering rule */
+	AUDIT_DEL_RULE    uint16 = 1012 /* Delete syscall filtering rule */
+	AUDIT_LIST_RULES  uint16 = 1013 /* List syscall filtering rules */
+	AUDIT_TRIM        uint16 = 1014 /* Trim junk from watched tree */
+	AUDIT_MAKE_EQUIV  uint16 = 1015 /* Append to watched tree */
+	AUDIT_TTY_GET     uint16 = 1016 /* Get TTY auditing status */
+	AUDIT_TTY_SET     uint16 = 1017 /* Set TTY auditing status */
+	AUDIT_SET_FEATURE uint16 = 1018 /* Turn an audit feature on or off */
+	AUDIT_GET_FEATURE uint16 = 1019 /* Get which features are enabled */
+
+	AUDIT_FIRST_USER_MSG  uint16 = 1100 /* Userspace messages mostly uninteresting to kernel */
+	AUDIT_USER_AVC        uint16 = 1107 /* We filter this differently */
+	AUDIT_USER_TTY        uint16 = 1124 /* Non-ICANON TTY input meaning */
+	AUDIT_LAST_USER_MSG   uint16 = 1199
+	AUDIT_FIRST_USER_MSG2 uint16 = 2100 /* More user space messages */
+	AUDIT_LAST_USER_MSG2  uint16 = 2999
+
+	AUDIT_DAEMON_START  uint16 = 1200 /* Daemon startup record */
+	AUDIT_DAEMON_END    uint16 = 1201 /* Daemon normal stop record */
+	AUDIT_DAEMON_ABORT  uint16 = 1202 /* Daemon error stop record */
+	AUDIT_DAEMON_CONFIG uint16 = 1203 /* Daemon config change */
+
+	AUDIT_SYSCALL uint16 = 1300 /* Syscall event */
+	/* AUDIT_FS_WATCHuint16 =      1301     * Deprecated */
+	AUDIT_PATH           uint16 = 1302 /* Filename path information */
+	AUDIT_IPC            uint16 = 1303 /* IPC record */
+	AUDIT_SOCKETCALL     uint16 = 1304 /* sys_socketcall arguments */
+	AUDIT_CONFIG_CHANGE  uint16 = 1305 /* Audit system configuration change */
+	AUDIT_SOCKADDR       uint16 = 1306 /* sockaddr copied as syscall arg */
+	AUDIT_CWD            uint16 = 1307 /* Current working directory */
+	AUDIT_EXECVE         uint16 = 1309 /* execve arguments */
+	AUDIT_IPC_SET_PERM   uint16 = 1311 /* IPC new permissions record type */
+	AUDIT_MQ_OPEN        uint16 = 1312 /* POSIX MQ open record type */
+	AUDIT_MQ_SENDRECV    uint16 = 1313 /* POSIX MQ send/receive record type */
+	AUDIT_MQ_NOTIFY      uint16 = 1314 /* POSIX MQ notify record type */
+	AUDIT_MQ_GETSETATTR  uint16 = 1315 /* POSIX MQ get/set attribute record type */
+	AUDIT_KERNEL_OTHER   uint16 = 1316 /* For use by 3rd party modules */
+	AUDIT_FD_PAIR        uint16 = 1317 /* audit record for pipe/socketpair */
+	AUDIT_OBJ_PID        uint16 = 1318 /* ptrace target */
+	AUDIT_TTY            uint16 = 1319 /* Input on an administrative TTY */
+	AUDIT_EOE            uint16 = 1320 /* End of multi-record event */
+	AUDIT_BPRM_FCAPS     uint16 = 1321 /* Information about fcaps increasing perms */
+	AUDIT_CAPSET         uint16 = 1322 /* Record showing argument to sys_capset */
+	AUDIT_MMAP           uint16 = 1323 /* Record showing descriptor and flags in mmap */
+	AUDIT_NETFILTER_PKT  uint16 = 1324 /* Packets traversing netfilter chains */
+	AUDIT_NETFILTER_CFG  uint16 = 1325 /* Netfilter chain modifications */
+	AUDIT_SECCOMP        uint16 = 1326 /* Secure Computing event */
+	AUDIT_PROCTITLE      uint16 = 1327 /* Proctitle emit event */
+	AUDIT_FEATURE_CHANGE uint16 = 1328 /* audit log listing feature changes */
+	AUDIT_REPLACE        uint16 = 1329 /* Replace auditd if this packet unanswerd */
+	AUDIT_KERN_MODULE    uint16 = 1330 /* Kernel Module events */
+	AUDIT_FANOTIFY       uint16 = 1331 /* Fanotify access decision */
+	AUDIT_TIME_INJOFFSET uint16 = 1332 /* Timekeeping offset injected */
+	AUDIT_TIME_ADJNTPVAL uint16 = 1333 /* NTP value adjustment */
+	AUDIT_BPF            uint16 = 1334 /* BPF subsystem */
+	AUDIT_EVENT_LISTENER uint16 = 1335 /* Task joined multicast read socket */
+
+	AUDIT_AVC               uint16 = 1400 /* SE Linux avc denial or grant */
+	AUDIT_SELINUX_ERR       uint16 = 1401 /* Internal SE Linux Errors */
+	AUDIT_AVC_PATH          uint16 = 1402 /* dentry, vfsmount pair from avc */
+	AUDIT_MAC_POLICY_LOAD   uint16 = 1403 /* Policy file load */
+	AUDIT_MAC_STATUS        uint16 = 1404 /* Changed enforcing,permissive,off */
+	AUDIT_MAC_CONFIG_CHANGE uint16 = 1405 /* Changes to booleans */
+	AUDIT_MAC_UNLBL_ALLOW   uint16 = 1406 /* NetLabel: allow unlabeled traffic */
+	AUDIT_MAC_CIPSOV4_ADD   uint16 = 1407 /* NetLabel: add CIPSOv4 DOI entry */
+	AUDIT_MAC_CIPSOV4_DEL   uint16 = 1408 /* NetLabel: del CIPSOv4 DOI entry */
+	AUDIT_MAC_MAP_ADD       uint16 = 1409 /* NetLabel: add LSM domain mapping */
+	AUDIT_MAC_MAP_DEL       uint16 = 1410 /* NetLabel: del LSM domain mapping */
+	AUDIT_MAC_IPSEC_ADDSA   uint16 = 1411 /* Not used */
+	AUDIT_MAC_IPSEC_DELSA   uint16 = 1412 /* Not used  */
+	AUDIT_MAC_IPSEC_ADDSPD  uint16 = 1413 /* Not used */
+	AUDIT_MAC_IPSEC_DELSPD  uint16 = 1414 /* Not used */
+	AUDIT_MAC_IPSEC_EVENT   uint16 = 1415 /* Audit an IPSec event */
+	AUDIT_MAC_UNLBL_STCADD  uint16 = 1416 /* NetLabel: add a static label */
+	AUDIT_MAC_UNLBL_STCDEL  uint16 = 1417 /* NetLabel: del a static label */
+	AUDIT_MAC_CALIPSO_ADD   uint16 = 1418 /* NetLabel: add CALIPSO DOI entry */
+	AUDIT_MAC_CALIPSO_DEL   uint16 = 1419 /* NetLabel: del CALIPSO DOI entry */
+
+	AUDIT_FIRST_KERN_ANOM_MSG   uint16 = 1700
+	AUDIT_LAST_KERN_ANOM_MSG    uint16 = 1799
+	AUDIT_ANOM_PROMISCUOUS      uint16 = 1700 /* Device changed promiscuous mode */
+	AUDIT_ANOM_ABEND            uint16 = 1701 /* Process ended abnormally */
+	AUDIT_ANOM_LINK             uint16 = 1702 /* Suspicious use of file links */
+	AUDIT_ANOM_CREAT            uint16 = 1703 /* Suspicious file creation */
+	AUDIT_INTEGRITY_DATA        uint16 = 1800 /* Data integrity verification */
+	AUDIT_INTEGRITY_METADATA    uint16 = 1801 /* Metadata integrity verification */
+	AUDIT_INTEGRITY_STATUS      uint16 = 1802 /* Integrity enable status */
+	AUDIT_INTEGRITY_HASH        uint16 = 1803 /* Integrity HASH type */
+	AUDIT_INTEGRITY_PCR         uint16 = 1804 /* PCR invalidation msgs */
+	AUDIT_INTEGRITY_RULE        uint16 = 1805 /* policy rule */
+	AUDIT_INTEGRITY_EVM_XATTR   uint16 = 1806 /* New EVM-covered xattr */
+	AUDIT_INTEGRITY_POLICY_RULE uint16 = 1807 /* IMA policy rules */
+
+	AUDIT_KERNEL uint16 = 2000 /* Asynchronous audit record. NOT A REQUEST. */
+)
