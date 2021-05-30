@@ -13,12 +13,14 @@ type AuditEventType string
 var (
 	ProcessEvent AuditEventType = "process_event"
 	FIMEvent     AuditEventType = "fim_event"
+	UserEvent    AuditEventType = "user_event"
 )
 
 // eventParsers is a map that holds functions that contains parser for different
 // audit message types which take in a parsed audit message token map and
 // populates the Audit context passed to it.
 var eventParsers = map[uint16]func(*auditContext, AuditMessageTokenMap){
+	1101: parseUserAcctEvent,
 	1300: parseSyscallEvent,
 	1302: parsePathEvent,
 	1307: parseCwdEvent,
@@ -58,6 +60,12 @@ type auditContext struct {
 	dest_path string
 	pathItems [5]string
 
+	// User event fields
+	msg      string
+	hostname string
+	terminal string
+	res      string
+
 	// Event type which shall be inferred from the events it contains
 	eventType string
 }
@@ -75,6 +83,25 @@ func newAuditContext() *auditContext {
 // returned which must be checked to identify a failed parsing.
 func ParseAuditEvent(tokenList []AuditMessageTokenMap) (*AuditEvent, bool) {
 	ctx := newAuditContext()
+
+	// Potentially a UserEvent. Need to find a better way to classify an event
+	// group.
+	if len(tokenList) == 1 {
+		v := tokenList[0]
+		if v.AuditEventType == 1305 {
+			return nil, false
+		}
+
+		if parser, ok := eventParsers[v.AuditEventType]; ok {
+			parser(ctx, v)
+		}
+
+		if IsUserEvent(v.AuditEventType) {
+			return parseUserEvent(ctx)
+		}
+
+		return nil, false
+	}
 
 	for _, v := range tokenList {
 		if parser, ok := eventParsers[v.AuditEventType]; ok {
@@ -162,6 +189,20 @@ func parseFIMEvent(auditCtx *auditContext) (*AuditEvent, bool) {
 	ae.DestPath = auditCtx.dest_path
 
 	return ae, true
+}
+
+func parseUserEvent(auditCtx *auditContext) (*AuditEvent, bool) {
+	return &AuditEvent{
+		Success:    auditCtx.res,
+		Msg:        auditCtx.msg,
+		Pid:        auditCtx.pid,
+		Auid:       auditCtx.auid,
+		Uid:        auditCtx.uid,
+		Session:    auditCtx.ses,
+		Exectuable: auditCtx.executable,
+		Key:        auditCtx.key,
+		Name:       UserEvent,
+	}, true
 }
 
 func resolvePath(ctx *auditContext) {
@@ -286,4 +327,22 @@ func parseProctitleEvent(ctx *auditContext, m AuditMessageTokenMap) {
 
 	args, _ := hex.DecodeString(p)
 	ctx.proctitle = string(bytes.ReplaceAll(args, []byte{0}, []byte{' '}))
+}
+
+func parseUserAcctEvent(ctx *auditContext, m AuditMessageTokenMap) {
+	// pid=16192 uid=1000 auid=1000 ses=1 msg='op=PAM:accounting grantors=pam_permit acct="p0n002h" exe="/usr/bin/sudo" hostname=? addr=? terminal=/dev/pts/2 res=success'
+	if m.AuditEventType != AUDIT_USER_ACCT {
+		return
+	}
+
+	ctx.msg = m.Tokens["msg"]
+	ctx.ses, _ = strconv.Atoi(m.Tokens["ses"])
+	ctx.pid, _ = strconv.Atoi(m.Tokens["pid"])
+	ctx.uid, _ = strconv.Atoi(m.Tokens["uid"])
+	ctx.auid, _ = strconv.Atoi(m.Tokens["auid"])
+	ctx.executable = strings.Trim(m.Tokens["exe"], `"`)
+	ctx.hostname = m.Tokens["hostname"]
+	ctx.terminal = m.Tokens["terminal"]
+	ctx.res = m.Tokens["res"]
+	ctx.key = m.Tokens["key"]
 }

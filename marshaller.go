@@ -61,7 +61,7 @@ func (a *auditMarshaller) Process(nlMsg *syscall.NetlinkMessage) {
 	aMsg := newAuditMessage(nlMsg)
 	if aMsg.Seq == 0 {
 		// We got an invalid audit message, return the current message and reset
-		glog.V(2).Infoln("Got a message with seq id 0, ignoring")
+		glog.V(3).Infoln("Got a message with seq id 0, ignoring")
 		a.flushOld()
 		return
 	}

@@ -126,3 +126,8 @@ func generateFIMSyscalls() {
 		fimSyscalls[SyscallNumber(s)] = true
 	}
 }
+
+func IsUserEvent(eventType uint16) bool {
+	//return eventType >= AUDIT_FIRST_USER_MSG && eventType <= AUDIT_LAST_USER_MSG
+	return eventType == AUDIT_USER_ACCT
+}

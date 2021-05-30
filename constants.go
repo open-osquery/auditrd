@@ -23,6 +23,8 @@ const (
 	AUDIT_GET_FEATURE uint16 = 1019 /* Get which features are enabled */
 
 	AUDIT_FIRST_USER_MSG  uint16 = 1100 /* Userspace messages mostly uninteresting to kernel */
+	AUDIT_USER_AUTH       uint16 = 1100 /* User system access authentication */
+	AUDIT_USER_ACCT       uint16 = 1101 /* User system access authorization */
 	AUDIT_USER_AVC        uint16 = 1107 /* We filter this differently */
 	AUDIT_USER_TTY        uint16 = 1124 /* Non-ICANON TTY input meaning */
 	AUDIT_LAST_USER_MSG   uint16 = 1199

@@ -25,6 +25,10 @@ type AuditEvent struct {
 	Suid        int            `json:"suid"`
 	Sgid        int            `json:"sgid"`
 	Session     int            `json:"session"`
+	Msg         string         `json:"msg,omitempty"`
+	Terminal    string         `json:"terminal,omitempty"`
+	Hostname    string         `json:"hostname,omitempty"`
+	Res         string         `json:"res,omitempty"`
 	Tty         string         `json:"tty,omitempty"`
 	Comm        string         `json:"comm,omitempty"`
 	Key         string         `json:"key,omitempty"`
