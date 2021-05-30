@@ -6,37 +6,37 @@ import (
 	"github.com/golang/glog"
 )
 
-//go:generate gomodifytags -file $GOFILE -struct AuditEvent -add-tags json -w
-type AuditEvent struct {
-	Name        AuditEventType `json:"name"`
-	Arch        string         `json:"arch,omitempty"`
-	Success     string         `json:"success,omitempty"`
-	Syscall     string         `json:"syscall"`
-	Exit        int            `json:"exit"`
-	Ppid        int            `json:"ppid"`
-	Pid         int            `json:"pid"`
-	Auid        int            `json:"auid"`
-	Uid         int            `json:"uid"`
-	Gid         int            `json:"gid"`
-	Euid        int            `json:"euid"`
-	Egid        int            `json:"egid"`
-	Fsuid       int            `json:"fsuid"`
-	Fsgid       int            `json:"fsgid"`
-	Suid        int            `json:"suid"`
-	Sgid        int            `json:"sgid"`
-	Session     int            `json:"session"`
-	Msg         string         `json:"msg,omitempty"`
-	Terminal    string         `json:"terminal,omitempty"`
-	Hostname    string         `json:"hostname,omitempty"`
-	Res         string         `json:"res,omitempty"`
-	Tty         string         `json:"tty,omitempty"`
-	Comm        string         `json:"comm,omitempty"`
-	Key         string         `json:"key,omitempty"`
-	Cwd         string         `json:"cwd,omitempty"`
-	Exectuable  string         `json:"exectuable,omitempty"`
-	Commandline string         `json:"commandline,omitempty"`
-	Path        string         `json:"path,omitempty"`
-	DestPath    string         `json:"dest_path,omitempty"`
+//go:generate gomodifytags -file $GOFILE -struct AuditUserEvent -add-tags json -w
+type AuditUserEvent struct {
+	Msg      string `json:"msg,omitempty"`
+	Hostname string `json:"hostname,omitempty"`
+	Terminal string `json:"terminal,omitempty"`
+	Res      string `json:"res,omitempty"`
+}
+
+//go:generate gomodifytags -file $GOFILE -struct AuditSyscallEvent -add-tags json -w
+type AuditSyscallEvent struct {
+	Syscall string `json:"syscall"`
+	Pid     int    `json:"pid"`
+	Ppid    int    `json:"ppid"`
+	Uid     int    `json:"uid"`
+	Auid    int    `json:"auid"`
+	Euid    int    `json:"euid"`
+	Fsuid   int    `json:"fsuid"`
+	Suid    int    `json:"suid"`
+
+	Gid   int `json:"gid"`
+	Egid  int `json:"egid"`
+	Fsgid int `json:"fsgid"`
+	Sgid  int `json:"sgid"`
+
+	Exectuable string `json:"exectuable"`
+}
+
+type AuditEvent interface {
+	Type() AuditEventType
+	Seq() int
+	Time() string
 }
 
 // AuditMessage represents a single audit message emitted from the netlink

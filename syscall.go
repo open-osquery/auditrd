@@ -70,21 +70,12 @@ func SyscallName(syscallNumber int) string {
 }
 
 func SyscallNumber(syscallName string) int {
-	return syscallNameToNumber[strings.ToLower(syscallName)]
-}
-
-func IsExecSyscall(syscallNumber int) bool {
-	s, ok := syscallNumberToName[syscallNumber]
+	n, ok := syscallNameToNumber[strings.ToLower(syscallName)]
 	if !ok {
-		return false
+		return -1
 	}
 
-	return s == "execve" || s == "execveat"
-}
-
-func IsFIMSyscall(syscallNumber int) bool {
-	_, ok := fimSyscalls[syscallNumber]
-	return ok
+	return n
 }
 
 func generateFIMSyscalls() {
@@ -125,9 +116,4 @@ func generateFIMSyscalls() {
 	} {
 		fimSyscalls[SyscallNumber(s)] = true
 	}
-}
-
-func IsUserEvent(eventType uint16) bool {
-	//return eventType >= AUDIT_FIRST_USER_MSG && eventType <= AUDIT_LAST_USER_MSG
-	return eventType == AUDIT_USER_ACCT
 }
